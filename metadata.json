@@ -1,5 +1,5 @@
 {
-  "name": "QuickDictate AI",
+  "name": "QuickNotes AI",
   "description": "A mobile-first app to dictate thoughts and ideas with one click. It automatically transcribes and categorizes your notes, allowing for quick saving or emailing, perfect for use on the go.",
   "requestFramePermissions": [
     "microphone"

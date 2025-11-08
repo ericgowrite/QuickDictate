@@ -1,13 +1,25 @@
-
 import React from 'react';
 import { MicrophoneIcon, StopIcon } from './icons';
 
+/**
+ * Props for the DictationButton component.
+ */
 interface DictationButtonProps {
+    /** Indicates whether the microphone is currently recording. */
     isRecording: boolean;
+    /** The function to call when the button is clicked. */
     onClick: () => void;
+    /** A flag to disable the button, e.g., during processing. */
     disabled?: boolean;
 }
 
+/**
+ * A circular button that starts and stops the dictation.
+ * It changes its appearance and icon based on the recording state.
+ *
+ * @param {DictationButtonProps} props The props for the component.
+ * @returns {React.FC} The rendered dictation button.
+ */
 export const DictationButton: React.FC<DictationButtonProps> = ({ isRecording, onClick, disabled }) => {
     const buttonClass = isRecording
         ? 'bg-red-500 hover:bg-red-600'

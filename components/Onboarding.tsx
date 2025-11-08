@@ -1,42 +1,41 @@
-
 import React, { useState } from 'react';
 import { UserSettings } from '../types';
 import { LogoIcon } from './icons';
 
+/**
+ * Props for the Onboarding component.
+ */
 interface OnboardingProps {
+    /** Callback function that is called when the user successfully completes the onboarding form. */
     onComplete: (settings: Omit<UserSettings, 'onboardingComplete'>) => void;
 }
 
-const defaultCategories = ["Work", "Podcast Notes", "Ideas", "To-Do", "Follow-ups", "Personal Reminder"];
+/** The default set of categories for a new user. */
+const defaultCategories = ["Ideas", "Follow ups", "To-do", "Notes"];
 
+/**
+ * A component that renders the initial onboarding screen for new users.
+ * It collects necessary information like email addresses.
+ *
+ * @param {OnboardingProps} props The props for the component.
+ * @returns {React.FC} The rendered onboarding form.
+ */
 export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     const [defaultEmail, setDefaultEmail] = useState('');
     const [otherEmails, setOtherEmails] = useState('');
-    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
     const [error, setError] = useState('');
-
-    const handleCategoryToggle = (category: string) => {
-        setSelectedCategories(prev =>
-            prev.includes(category)
-                ? prev.filter(c => c !== category)
-                : [...prev, category]
-        );
-    };
 
     const handleSubmit = () => {
         if (!defaultEmail || !/^\S+@\S+\.\S+$/.test(defaultEmail)) {
             setError('Please enter a valid default email address.');
             return;
         }
-        if (selectedCategories.length === 0) {
-            setError('Please select at least one category.');
-            return;
-        }
+        
         setError('');
         onComplete({
             defaultEmail,
             otherEmails: otherEmails.split(',').map(e => e.trim()).filter(Boolean),
-            categories: selectedCategories,
+            categories: defaultCategories,
         });
     };
 
@@ -45,7 +44,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
             <div className="w-full max-w-md bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700">
                 <div className="flex flex-col items-center mb-6">
                     <LogoIcon className="h-12 w-12 text-blue-400 mb-3" />
-                    <h1 className="text-3xl font-bold">Welcome to QuickDictate AI</h1>
+                    <h1 className="text-3xl font-bold">Welcome to QuickNotes AI</h1>
                     <p className="text-gray-400 mt-2 text-center">Let's set things up for you.</p>
                 </div>
                 
@@ -81,27 +80,6 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                             className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         />
                          <p className="text-xs text-gray-500 mt-1">Comma-separated.</p>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Your Note Categories
-                        </label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {defaultCategories.map(category => (
-                                <button
-                                    key={category}
-                                    onClick={() => handleCategoryToggle(category)}
-                                    className={`px-3 py-2 text-sm rounded-md transition-colors duration-200 text-left ${
-                                        selectedCategories.includes(category)
-                                            ? 'bg-blue-600 text-white font-semibold'
-                                            : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                                    }`}
-                                >
-                                    {category}
-                                </button>
-                            ))}
-                        </div>
                     </div>
                 </div>
 

@@ -1,20 +1,35 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Note } from '../types';
-import { ShareIcon, SaveIcon, TrashIcon, ChevronDownIcon, EmailIcon } from './icons';
+import { SaveIcon, TrashIcon, ChevronDownIcon, EmailIcon } from './icons';
 
+/**
+ * Props for the CurrentNoteCard component.
+ */
 interface CurrentNoteCardProps {
+    /** The note object currently under review (without id or timestamp). */
     note: Omit<Note, 'id' | 'timestamp'>;
+    /** Callback function to save the current note. */
     onSave: () => void;
-    onShare: (email?: string) => void;
+    /** Callback function to email the current note. Can accept an optional email address. */
+    onEmail: (email?: string) => void;
+    /** Callback function to discard the current note. */
     onDiscard: () => void;
+    /** A list of email addresses for the email dropdown menu. */
     emailAddresses: string[];
 }
 
-export const CurrentNoteCard: React.FC<CurrentNoteCardProps> = ({ note, onSave, onShare, onDiscard, emailAddresses }) => {
+/**
+ * A card component that displays the currently transcribed and categorized note.
+ * It provides actions to save, email, or discard the note.
+ *
+ * @param {CurrentNoteCardProps} props The props for the component.
+ * @returns {React.FC} The rendered card for the current note.
+ */
+export const CurrentNoteCard: React.FC<CurrentNoteCardProps> = ({ note, onSave, onEmail, onDiscard, emailAddresses }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    // Effect to handle clicks outside the dropdown menu to close it.
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -42,12 +57,12 @@ export const CurrentNoteCard: React.FC<CurrentNoteCardProps> = ({ note, onSave, 
 
                 <div className="relative inline-flex rounded-lg shadow-sm w-full sm:w-auto" ref={dropdownRef}>
                     <button
-                        onClick={() => onShare()}
+                        onClick={() => onEmail()}
                         className="flex items-center justify-center gap-2 flex-grow px-5 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-l-lg font-semibold transition-colors duration-200"
-                        title="Share this note"
+                        title="Email this note"
                     >
-                        <ShareIcon />
-                        Share
+                        <EmailIcon />
+                        Email
                     </button>
                     <div className="relative">
                          <button
@@ -70,7 +85,7 @@ export const CurrentNoteCard: React.FC<CurrentNoteCardProps> = ({ note, onSave, 
                                             href="#"
                                             onClick={(e) => {
                                                 e.preventDefault();
-                                                onShare(email);
+                                                onEmail(email);
                                                 setIsDropdownOpen(false);
                                             }}
                                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 w-full text-left"

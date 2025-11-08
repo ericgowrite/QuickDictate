@@ -1,6 +1,17 @@
-
+/**
+ * @file This service is responsible for all interactions with the Google Gemini API.
+ */
 import { GoogleGenAI } from "@google/genai";
 
+/**
+ * Sends transcribed text to the Gemini API to determine its category.
+ * It constructs a prompt with the user's text and a list of possible categories.
+ * If the API call fails or returns an invalid category, it defaults to "Notes".
+ *
+ * @param {string} text The transcribed text of the note to be categorized.
+ * @param {string[]} userCategories The list of categories the user has configured.
+ * @returns {Promise<string>} A promise that resolves to the determined category name.
+ */
 export async function categorizeNote(text: string, userCategories: string[]): Promise<string> {
     if (!process.env.API_KEY) {
         throw new Error("API_KEY environment variable not set");
@@ -9,7 +20,7 @@ export async function categorizeNote(text: string, userCategories: string[]): Pr
     
     const categoriesString = userCategories.map(c => `"${c}"`).join(', ');
 
-    const prompt = `Please categorize the following note into ONE of these categories: ${categoriesString}, or "General Note" if none apply. Respond with ONLY the category name and nothing else.
+    const prompt = `Please categorize the following note into ONE of these categories: ${categoriesString}. If none of the other categories are a good fit, categorize it as "Notes". Respond with ONLY the category name and nothing else.
     
     Note: "${text}"
     
@@ -21,14 +32,13 @@ export async function categorizeNote(text: string, userCategories: string[]): Pr
             contents: prompt,
         });
         const category = response.text.trim();
-        const validCategories = [...userCategories, "General Note"];
         // Return a default category if the model's response is not one of the expected ones.
-        if (validCategories.includes(category)) {
+        if (userCategories.includes(category)) {
             return category;
         }
-        return "General Note";
+        return "Notes";
     } catch (error) {
         console.error("Error categorizing note:", error);
-        return "General Note"; // Fallback category
+        return "Notes"; // Fallback category
     }
 }

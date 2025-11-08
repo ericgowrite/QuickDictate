@@ -1,4 +1,6 @@
-
+/**
+ * @file This file contains a collection of simple, reusable SVG icon components used throughout the application.
+ */
 import React from 'react';
 
 export const MicrophoneIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -55,11 +57,5 @@ export const ChevronDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) 
 export const CheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-);
-
-export const ShareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8m-4-6l-4-4m0 0l-4 4m4-4v12" />
     </svg>
 );

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveSession, LiveServerMessage, Modality } from '@google/genai';
 import { categorizeNote } from './services/geminiService';
@@ -10,7 +9,9 @@ import { SavedNotesList } from './components/SavedNotesList';
 import { Onboarding } from './components/Onboarding';
 import { LoadingSpinner, LogoIcon } from './components/icons';
 
-
+/**
+ * Default user settings, used when no settings are found in localStorage.
+ */
 const defaultSettings: UserSettings = {
   onboardingComplete: false,
   defaultEmail: '',
@@ -18,47 +19,99 @@ const defaultSettings: UserSettings = {
   categories: ["Work", "Podcast Notes", "Ideas", "To-Do", "Follow-ups"]
 };
 
-
+/**
+ * The main application component for QuickNotes AI.
+ * It manages the application's state, handles audio recording and processing,
+ * and orchestrates the UI components.
+ * @returns {React.FC} The root component of the application.
+ */
 const App: React.FC = () => {
+    /** Manages the current state of the application (e.g., IDLE, RECORDING). */
     const [appState, setAppState] = useState<AppState>(AppState.IDLE);
+    /** Holds the real-time transcription text from the microphone. */
     const [currentTranscription, setCurrentTranscription] = useState<string>('');
+    /** Stores the processed and categorized note before it's saved or discarded. */
     const [currentNote, setCurrentNote] = useState<Omit<Note, 'id' | 'timestamp'> | null>(null);
+    /** An array of all notes saved by the user. */
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
+    /** Stores any error messages to be displayed to the user. */
     const [error, setError] = useState<string | null>(null);
+    /** Tracks whether the app has finished its initial load from localStorage. */
     const [isInitialized, setIsInitialized] = useState<boolean>(false);
+    /** Holds the user's settings, loaded from and persisted to localStorage. */
     const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+    /** A flag to track if the current note was just emailed, for display purposes. */
     const [justEmailed, setJustEmailed] = useState<boolean>(false);
 
+    /** A ref to hold the promise that resolves to the Gemini LiveSession. */
     const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
+    /** A ref for the browser's AudioContext to manage audio processing. */
     const audioContextRef = useRef<AudioContext | null>(null);
+    /** A ref for the ScriptProcessorNode used to handle audio data chunks. */
     const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+    /** A ref for the audio source from the user's media stream (microphone). */
     const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
+    /**
+     * Effect hook to load user settings and saved notes from localStorage on initial app load.
+     */
     useEffect(() => {
         try {
-            const storedSettings = localStorage.getItem('quickDictateSettings');
+            const storedSettings = localStorage.getItem('quickNotesSettings');
             if (storedSettings) {
                 setSettings(JSON.parse(storedSettings));
             }
+            const storedNotes = localStorage.getItem('quickNotesNotes');
+            if (storedNotes) {
+                const parsedNotes = JSON.parse(storedNotes).map((note: Note) => ({
+                    ...note,
+                    timestamp: new Date(note.timestamp),
+                }));
+                setSavedNotes(parsedNotes);
+            }
         } catch (e) {
-            console.error("Failed to parse settings from localStorage", e);
+            console.error("Failed to parse data from localStorage", e);
         }
         setIsInitialized(true);
     }, []);
 
+    /**
+     * Effect hook to persist the `savedNotes` array to localStorage whenever it changes.
+     */
+    useEffect(() => {
+        if (isInitialized) {
+            try {
+                localStorage.setItem('quickNotesNotes', JSON.stringify(savedNotes));
+            } catch (e) {
+                console.error("Failed to save notes to localStorage", e);
+            }
+        }
+    }, [savedNotes, isInitialized]);
+
+    /**
+     * Callback function to handle the completion of the onboarding process.
+     * Saves the new settings to state and localStorage.
+     * @param {Omit<UserSettings, 'onboardingComplete'>} newSettings - The settings collected from the onboarding form.
+     */
     const handleOnboardingComplete = (newSettings: Omit<UserSettings, 'onboardingComplete'>) => {
         const finalSettings = { ...newSettings, onboardingComplete: true };
         setSettings(finalSettings);
         try {
-            localStorage.setItem('quickDictateSettings', JSON.stringify(finalSettings));
+            localStorage.setItem('quickNotesSettings', JSON.stringify(finalSettings));
         } catch (e) {
             console.error("Failed to save settings to localStorage", e);
         }
     };
 
+    /**
+     * Toggles the recording state. When starting, it initializes the Gemini Live API session
+     * and sets up the audio processing pipeline. When stopping, it closes the session,
+     * processes the final transcription, and moves to the review state.
+     */
     const handleToggleRecording = useCallback(async () => {
         if (appState === AppState.RECORDING) {
             setAppState(AppState.PROCESSING);
+            // Stop recording logic
             if (sessionPromiseRef.current) {
                 const session = await sessionPromiseRef.current;
                 session.close();
@@ -72,6 +125,7 @@ const App: React.FC = () => {
                 }
             }
             
+            // Process the transcribed text if it's not empty
             if (currentTranscription.trim().length > 0) {
                 try {
                     const category = await categorizeNote(currentTranscription, settings.categories);
@@ -88,6 +142,7 @@ const App: React.FC = () => {
                  setAppState(AppState.IDLE);
             }
         } else {
+            // Start recording logic
             setError(null);
             setCurrentNote(null);
             setCurrentTranscription('');
@@ -152,6 +207,10 @@ const App: React.FC = () => {
         }
     }, [appState, currentTranscription, settings.categories]);
 
+    /**
+     * Saves the current note to the `savedNotes` list, assigning it a unique ID and timestamp.
+     * Also prepends the category to the note text.
+     */
     const handleSaveNote = () => {
         if (currentNote) {
             const newNote: Note = {
@@ -159,57 +218,54 @@ const App: React.FC = () => {
                 id: crypto.randomUUID(),
                 timestamp: new Date(),
                 emailSent: justEmailed,
+                text: `${currentNote.category}:\n\n${currentNote.text}`,
             };
             setSavedNotes(prev => [newNote, ...prev]);
             resetCurrentNote();
         }
     };
     
-    const handleShareNote = async (email?: string) => {
+    /**
+     * Composes and triggers a `mailto:` link to send the current note via the user's default email client.
+     * @param {string} [email] - An optional email address to send to. If not provided, the default email from settings is used.
+     */
+    const handleEmailNote = (email?: string) => {
         if (!currentNote) return;
-    
+
         setJustEmailed(true);
         const subject = `Note: ${currentNote.category}`;
-        const body = currentNote.text;
-    
-        // If a specific email is provided (from the dropdown), always use mailto:
-        if (email) {
-            window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            return;
-        }
-    
-        // If no email is provided (main button), try the Web Share API first
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: subject,
-                    text: body,
-                });
-            } catch (error) {
-                console.log('Error sharing:', error);
-            }
+        const body = `${currentNote.category}:\n\n${currentNote.text}`;
+        const recipient = email || settings.defaultEmail;
+
+        if (recipient) {
+            window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         } else {
-            // Fallback to mailto: with the default email for browsers without Share API
-            const defaultEmail = settings.defaultEmail;
-            if (defaultEmail) {
-                window.location.href = `mailto:${defaultEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            } else {
-                // If no default email, prompt the user or handle error
-                alert("Please set a default email in settings to use this feature on desktop.");
-            }
+            alert("Please set a default email in your settings.");
         }
     };
 
+    /**
+     * Deletes a saved note from the list by its ID.
+     * @param {string} id - The unique identifier of the note to be deleted.
+     */
     const handleDeleteSavedNote = (id: string) => {
         setSavedNotes(notes => notes.filter(note => note.id !== id));
     };
 
+    /**
+     * Resets the current note and application state back to IDLE.
+     * Used after saving, emailing, or discarding a note.
+     */
     const resetCurrentNote = () => {
         setCurrentNote(null);
         setAppState(AppState.IDLE);
         setJustEmailed(false);
     }
     
+    /**
+     * Effect hook for cleanup. Ensures that any active session or audio context
+     * is closed when the component unmounts.
+     */
     useEffect(() => {
         return () => {
             if (sessionPromiseRef.current) {
@@ -221,6 +277,7 @@ const App: React.FC = () => {
         };
     }, []);
 
+    // Display a loading spinner until the app is initialized from localStorage.
     if (!isInitialized) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -229,6 +286,7 @@ const App: React.FC = () => {
         );
     }
 
+    // Display the onboarding screen if the user hasn't completed it yet.
     if (!settings.onboardingComplete) {
         return <Onboarding onComplete={handleOnboardingComplete} />;
     }
@@ -239,7 +297,7 @@ const App: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex flex-col font-sans">
             <header className="p-4 flex items-center justify-center space-x-3 border-b border-gray-700/50">
                 <LogoIcon/>
-                <h1 className="text-2xl font-bold text-white tracking-tight">QuickDictate AI</h1>
+                <h1 className="text-2xl font-bold text-white tracking-tight">QuickNotes AI</h1>
             </header>
 
             <main className="flex-grow flex flex-col p-4 md:p-6 space-y-4 overflow-y-auto">
@@ -263,7 +321,7 @@ const App: React.FC = () => {
                         <CurrentNoteCard 
                             note={currentNote} 
                             onSave={handleSaveNote} 
-                            onShare={handleShareNote}
+                            onEmail={handleEmailNote}
                             onDiscard={resetCurrentNote}
                             emailAddresses={allEmails}
                         />
